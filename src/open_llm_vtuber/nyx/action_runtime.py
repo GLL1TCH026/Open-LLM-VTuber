@@ -71,7 +71,8 @@ class LocalActionRuntime:
             raise KeyError(f"Unknown action '{action_name}'")
 
         if "target" in kwargs:
-            self.guard.validate_target(str(kwargs["target"]), action_name)
+            validated_target = self.guard.resolve_target(str(kwargs["target"]), action_name)
+            kwargs["target"] = str(validated_target)
 
         if action.allow_shell:
             return action.handler(**kwargs)

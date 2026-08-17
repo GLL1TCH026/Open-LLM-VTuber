@@ -30,11 +30,16 @@ def main() -> None:
     args = parser.parse_args()
 
     icon_path = Path(args.icon)
+    if not icon_path.is_absolute():
+        icon_path = (ROOT / icon_path).resolve()
+    else:
+        icon_path = icon_path.resolve()
+
     if not icon_path.exists():
-        if icon_path != DEFAULT_ICON:
+        if args.icon != str(DEFAULT_ICON):
             parser.error(f"Icon file does not exist: {icon_path}")
         subprocess.run([sys.executable, str(ROOT / "scripts" / "generate_nyx_icon.py")], check=True, cwd=str(ROOT))
-        icon_path = DEFAULT_ICON
+        icon_path = DEFAULT_ICON.resolve()
 
     DIST.mkdir(exist_ok=True)
     WORK.mkdir(exist_ok=True)

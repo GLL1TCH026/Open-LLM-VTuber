@@ -73,7 +73,8 @@ class NyxRuntime:
             )
         self.status.transition(NyxState.ACTING, f"Executing action: {name}")
         if "path" in kwargs and name in {"read_file", "write_file"}:
-            self.security.validate_target(str(kwargs["path"]), name)
+            resolved_path = self.security.resolve_target(str(kwargs["path"]), name)
+            kwargs["path"] = str(resolved_path)
 
         try:
             result = self.registry.run(name, **kwargs)
