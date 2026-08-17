@@ -1,8 +1,19 @@
 from __future__ import annotations
 
+import shlex
+import subprocess
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List
+
+
+_ALLOWED_COMMANDS: dict[str, list[str]] = {
+    "echo": ["echo"],
+    "hostname": ["hostname"],
+    "whoami": ["whoami"],
+    "python": [sys.executable],
+}
 
 
 @dataclass
@@ -35,6 +46,18 @@ class ActionRegistry:
         return sorted(self._actions.keys())
 
 
+def resolve_safe_command(command: str) -> list[str]:
+    parts = shlex.split(command)
+    if not parts:
+        raise ValueError("Empty command")
+    executable = parts[0].lower()
+    if executable not in _ALLOWED_COMMANDS:
+        raise PermissionError(f"Command '{executable}' is not allowed")
+    argv = list(_ALLOWED_COMMANDS[executable])
+    argv.extend(parts[1:])
+    return argv
+
+
 def read_file(path: str) -> str:
     return Path(path).read_text(encoding="utf-8")
 
@@ -47,9 +70,7 @@ def write_file(path: str, content: str) -> str:
 
 
 def shell_command(command: str) -> str:
-    import subprocess
-
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    result = subprocess.run(resolve_safe_command(command), shell=False, capture_output=True, text=True)
     output = result.stdout.strip() or result.stderr.strip() or ""
     return output
 

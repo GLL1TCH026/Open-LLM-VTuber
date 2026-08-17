@@ -22,13 +22,19 @@ DEFAULT_ICON = ROOT / "scripts" / "nyx_icon.ico"
 
 
 def main() -> None:
+    if sys.platform != "win32":
+        raise SystemExit("Nyx Windows installer builds must run on Windows; PyInstaller is not a cross-compiler.")
+
     parser = argparse.ArgumentParser(description="Build a single-file Windows installer for Nyx.")
     parser.add_argument("--icon", default=str(DEFAULT_ICON), help="Path to a Windows .ico icon file.")
     args = parser.parse_args()
 
     icon_path = Path(args.icon)
     if not icon_path.exists():
+        if icon_path != DEFAULT_ICON:
+            parser.error(f"Icon file does not exist: {icon_path}")
         subprocess.run([sys.executable, str(ROOT / "scripts" / "generate_nyx_icon.py")], check=True, cwd=str(ROOT))
+        icon_path = DEFAULT_ICON
 
     DIST.mkdir(exist_ok=True)
     WORK.mkdir(exist_ok=True)

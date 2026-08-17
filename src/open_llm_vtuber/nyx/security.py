@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, List, Sequence
+from typing import Sequence
 
 
 class PermissionDeniedError(RuntimeError):
@@ -18,9 +18,9 @@ class SecurityPolicy:
         normalized = str(Path(target)).replace("\\", "/")
         if any(block in normalized for block in self.blocked_patterns):
             return False
-        resolved = Path(target).resolve(strict=False)
+        resolved = Path(target).expanduser().resolve(strict=False)
         for root in self.allowed_roots:
-            root_path = Path(root).resolve(strict=False)
+            root_path = Path(root).expanduser().resolve(strict=False)
             try:
                 resolved.relative_to(root_path)
                 return True
@@ -39,3 +39,11 @@ class NyxSecurityGuard:
 
     def validate_target(self, target: str, action_name: str) -> None:
         self.policy.require_allowed(target, action_name)
+
+    def resolve_target(self, target: str, action_name: str) -> Path:
+        candidate = Path(target).expanduser()
+        resolved = candidate.resolve(strict=False)
+        if candidate.exists() and candidate.is_symlink():
+            raise PermissionDeniedError(f"Action '{action_name}' denied for unsafe symlink target '{target}'")
+        self.validate_target(str(resolved), action_name)
+        return resolved

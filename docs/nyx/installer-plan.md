@@ -7,6 +7,7 @@ Produire un unique exécutable `.exe` qui installe le backend local, les dépend
 ## Étapes
 
 1. Bundle du runtime Python avec PyInstaller.
+   - Installer la dépendance de packaging avec `uv sync --extra packaging` ou `uv pip install -e ".[packaging]"`.
 2. Packaging du backend local et des ressources statiques.
 3. Inclusion des modules ASR/TTS/Live2D.
 4. Déploiement des modèles locaux dans un dossier dédié `models/`.

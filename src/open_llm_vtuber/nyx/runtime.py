@@ -7,7 +7,7 @@ from .actions import ActionRegistry, LocalAction, monitor_service, mqtt_message,
 from .audit import AuditLog
 from .memory import NyxMemory
 from .perception import NyxPerception
-from .security import NyxSecurityGuard, SecurityPolicy
+from .security import NyxSecurityGuard, PermissionDeniedError, SecurityPolicy
 from .state import NyxState, NyxStatus
 
 
@@ -67,12 +67,23 @@ class NyxRuntime:
         return self.perception.set_avatar_state(state, details)
 
     def execute_action(self, name: str, **kwargs: Any) -> Any:
+        if self.status.locked or self.status.validation_required:
+            raise PermissionDeniedError(
+                f"Action '{name}' denied while Nyx is locked or awaiting validation"
+            )
         self.status.transition(NyxState.ACTING, f"Executing action: {name}")
         if "path" in kwargs and name in {"read_file", "write_file"}:
             self.security.validate_target(str(kwargs["path"]), name)
 
-        result = self.registry.run(name, **kwargs)
-        self.audit.record(name, {"kwargs": kwargs, "result": str(result)[:200]})
+        try:
+            result = self.registry.run(name, **kwargs)
+        except Exception:
+            self.status.transition(NyxState.ERROR, f"Action failed: {name}")
+            self.audit.record(name, {"kwargs": kwargs, "result": "error", "allowed": False}, allowed=False)
+            raise
+
+        self.status.transition(NyxState.LISTENING, "Nyx is ready again")
+        self.audit.record(name, {"kwargs": kwargs, "result": str(result)[:200], "allowed": True})
         return result
 
     def request_review(self, reason: str) -> None:

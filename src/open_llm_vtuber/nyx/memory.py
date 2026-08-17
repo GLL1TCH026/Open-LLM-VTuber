@@ -31,6 +31,11 @@ class NyxMemory:
         self.semantic.append(MemoryEntry("semantic", content, metadata))
 
     def relevant_context(self, query: str, limit: int = 5) -> List[str]:
+        if limit == 0:
+            return []
+        if limit < 0:
+            raise ValueError("limit must be non-negative")
+
         haystacks = [self.working, self.episodic, self.semantic]
         matches: List[str] = []
         query_lower = query.lower()

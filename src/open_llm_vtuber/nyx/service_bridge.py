@@ -35,10 +35,7 @@ class NyxSession:
         return NyxSession.from_service_context(service_context)
 
     async def listen(self, audio: Any | None = None, text: str | None = None) -> str:
-        transcript = await self.runtime.listen(audio=audio, text=text)
-        if transcript:
-            self.runtime.remember(transcript, tier="working", source="voice")
-        return transcript
+        return await self.runtime.listen(audio=audio, text=text)
 
     async def speak(self, text: str) -> str:
         return await self.runtime.speak(text)
