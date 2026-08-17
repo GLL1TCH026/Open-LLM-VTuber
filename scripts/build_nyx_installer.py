@@ -24,18 +24,39 @@ LOG_PATH = ROOT / "build_nyx.log"
 
 
 def _run_build(command: list[str], *, cwd: Path, env: dict[str, str]) -> None:
-    """Run the build command and persist the output to build_nyx.log."""
-    result = subprocess.run(command, cwd=str(cwd), env=env, capture_output=True, text=True, check=False)
-    combined_output = (result.stdout or "") + (result.stderr or "")
-    LOG_PATH.write_text(combined_output, encoding="utf-8")
+    """Run the build command and persist the output to build_nyx.log.
 
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
+    Stream stdout/stderr incrementally to the terminal and to the log file so
+    long-running builds don't buffer large outputs in memory and users see
+    progress as it happens.
+    """
+    # Open the log file in append mode so incremental runs accumulate output.
+    with LOG_PATH.open("a", encoding="utf-8") as logf:
+        process = subprocess.Popen(
+            command,
+            cwd=str(cwd),
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
 
-    if result.returncode != 0:
-        raise subprocess.CalledProcessError(result.returncode, command, output=result.stdout, stderr=result.stderr)
+        captured_lines: list[str] = []
+        assert process.stdout is not None
+        for line in iter(process.stdout.readline, ""):
+            # Write to terminal and log incrementally
+            print(line, end="")
+            logf.write(line)
+            logf.flush()
+            captured_lines.append(line)
+
+        process.wait()
+        combined_output = "".join(captured_lines)
+
+        if process.returncode != 0:
+            # Raise with captured output for callers/tests
+            raise subprocess.CalledProcessError(process.returncode, command, output=combined_output)
 
 
 def main() -> None:
@@ -73,10 +94,20 @@ def main() -> None:
         "tzdata",
         "scipy.special._cdflib",
     ]
-    available_hidden_imports = []
+    available_hidden_imports: list[str] = []
     for module_name in hidden_imports:
-        if importlib.util.find_spec(module_name) is not None:
+        try:
+            spec = importlib.util.find_spec(module_name)
+        except ModuleNotFoundError:
+            # A missing parent package can cause find_spec on a dotted name to
+            # raise ModuleNotFoundError; treat as unavailable and continue.
+            spec = None
+        if spec is not None:
             available_hidden_imports.extend(["--hidden-import", module_name])
+
+    # Make the console/windowed mode explicit: default to windowed and enable
+    # console mode only when requested.
+    mode_args = ["--console"] if args.console else ["--windowed"]
 
     command = [
         sys.executable,
@@ -86,7 +117,7 @@ def main() -> None:
         "--noconfirm",
         "--noupx",
         "--onefile",
-        "--console",
+        *mode_args,
         "--name",
         "Nyx",
         "--icon",
