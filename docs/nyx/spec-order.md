@@ -17,6 +17,7 @@ Cette feuille de route suit la spec de référence `Nyx_Recette.pdf` et applique
 3. Action locale
    - `/speckit.specify "Nyx local action runner"`
    - `/speckit.plan "Nyx local action runner"`
+   - `/speckit.analyze "Nyx local action runner"`
    - Livrable: lecture/écriture de fichiers, exécution autorisée, surveillance de services, communication locale.
 
 4. Évolution et auto-correction
