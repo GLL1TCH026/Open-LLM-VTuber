@@ -12,7 +12,6 @@ _ALLOWED_COMMANDS: dict[str, list[str]] = {
     "echo": ["echo"],
     "hostname": ["hostname"],
     "whoami": ["whoami"],
-    "python": [sys.executable],
 }
 
 
